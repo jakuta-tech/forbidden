@@ -5,6 +5,7 @@ import sys
 import urllib.parse
 import os
 import re
+import socket
 import base64
 import concurrent.futures
 import subprocess
@@ -23,7 +24,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v7.7 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v7.8 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   python3 forbidden.py -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: python3 forbidden.py -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -73,10 +74,11 @@ def advanced():
 	print("    Number of parallel threads to run")
 	print("    More threads make it quicker but can give worse results")
 	print("    Heavily depends on network bandwidth and server capacity")
+	print("    Default: 5")
 	print("    -th <threads> - 200 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/7.7")
+	print("    Default: Forbidden/7.8")
 	print("    -a <agent> - curl/3.30.1 | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -499,9 +501,26 @@ def fetch_accessible(urls, method, headers = None, body = None, ignore = None, a
 			records.append(record)
 	return records
 
+def fetch_ips(domains_no_port):
+	if not isinstance(domains_no_port, list):
+		domains_no_port = [domains_no_port]
+	ips = []
+	for domain_no_port in domains_no_port:
+		try:
+			ips.append(socket.gethostbyname(domain_no_port))
+		except socket.error:
+			pass
+	return ips
+
 # -------------------- TEST RECORDS END --------------------
 
 # -------------------- STRUCTURES BEGIN --------------------
+
+def get_base_urls(scheme, domain_no_port, port, path):
+	return [
+		("http://{0}:{1}{2}").format(domain_no_port, port if scheme == "http" else 80, path),
+		("https://{0}:{1}{2}").format(domain_no_port, port if scheme == "https" else 443, path)
+	]
 
 def get_methods():
 	return unique([
@@ -846,10 +865,7 @@ def get_collection(url, tests, accessible, evil, force = None, values = None, ig
 	if contains(tests, ["methods", "all"]):
 		local = {
 			"urls": {
-				"base": [
-					("http://{0}:{1}{2}").format(url["domain_no_port"], url["port"] if url["scheme"] == "http" else 80, url["path"]),
-					("https://{0}:{1}{2}").format(url["domain_no_port"], url["port"] if url["scheme"] == "https" else 443, url["path"])
-				]
+				"base": get_base_urls(url["scheme"], url["domain_no_port"], url["port"], url["path"])
 			},
 			"methods": [force] if force else get_methods(),
 			"headers": {
@@ -904,10 +920,7 @@ def get_collection(url, tests, accessible, evil, force = None, values = None, ig
 	if contains(tests, ["scheme-overrides", "all"]):
 		local = {
 			"urls": {
-				"base": [
-					("http://{0}:{1}{2}").format(url["domain_no_port"], url["port"] if url["scheme"] == "http" else 80, url["path"]),
-					("https://{0}:{1}{2}").format(url["domain_no_port"], url["port"] if url["scheme"] == "https" else 443, url["path"])
-				]
+				"base": get_base_urls(url["scheme"], url["domain_no_port"], url["port"], url["path"])
 			},
 			"methods": [force] if force else ["GET"],
 			"headers": {
@@ -1198,7 +1211,7 @@ def parse_results(results):
 	# --------------------
 	return tmp
 
-def bypass(collection, threads = 1):
+def bypass(collection, threads = 10):
 	results = []
 	count = 0
 	total = len(collection)
@@ -1216,7 +1229,7 @@ def bypass(collection, threads = 1):
 if proceed:
 	print("######################################################################")
 	print("#                                                                    #")
-	print("#                           Forbidden v7.7                           #")
+	print("#                           Forbidden v7.8                           #")
 	print("#                                by Ivan Sincek                      #")
 	print("#                                                                    #")
 	print("# Bypass 4xx HTTP response status codes and more.                    #")
@@ -1230,9 +1243,9 @@ if proceed:
 	if not args["evil"]:
 		args["evil"] = "github.com"
 	if not args["threads"]:
-		args["threads"] = 1
+		args["threads"] = 5
 	if not args["agent"]:
-		args["agent"] = "Forbidden/7.7"
+		args["agent"] = "Forbidden/7.8"
 	# --------------------
 	url = parse_url(args["url"])
 	ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
@@ -1249,7 +1262,11 @@ if proceed:
 		ignore["lengths"].extend([record["length"] for record in records])
 		ignore["lengths"].pop(ignore["lengths"].index("path"))
 	# --------------------
-	collection = get_collection(url, args["tests"], accessible, args["evil"], args["force"], args["values"], ignore, args["agent"], args["proxy"])
+	# NOTE: Fetch base domain IPs.
+	ips = fetch_ips(url["domain_no_port"])
+	values = args["values"] + ips if args["values"] else ips
+	# --------------------
+	collection = get_collection(url, args["tests"], accessible, args["evil"], args["force"], values, ignore, args["agent"], args["proxy"])
 	if not collection:
 		print("No test records were created")
 	else:

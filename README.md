@@ -47,7 +47,7 @@ Made for educational purposes. I hope it will help!
 * some web proxies might modify some HTTP requests (e.g. the ones in the `encoding` scope),
 * beware of `rate limiting` and other similar protections, take some time before you run the script again on the same domain,
 * connection timeout is set to `90` seconds, and response timeout is set to `180` seconds,
-* average runtime for all tests on a single thread is `12` minutes,
+* average runtime for all tests on a single thread is `12` minutes, optimal no. of threads is `5`,
 * `length` attribute from results includes only HTTP response body length,
 * cross-site tracing (XST) is `no more` considered to be a vulnerability,
 * cURL commands to test double `Host` header don't work properly because cURL doesn't allow that - I had to send web requests using `requests` library.
@@ -55,7 +55,6 @@ Made for educational purposes. I hope it will help!
 **High priority plans:**
 
 * add option to wait/sleep between requests on a single thread,
-* add base and evil domain name IPs as HTTP header values,
 * scope tests to only allowed HTTP methods (fetched with HTTP OPTIONS method),
 * do not ignore URL parameters and fragments,
 * add option to ignore multiple texts.
@@ -334,8 +333,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1"
       ],
       "body":null,
-      "agent":"Forbidden/7.7",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/7.7' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/7.8",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/7.8' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    },
@@ -347,8 +346,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1:443"
       ],
       "body":null,
-      "agent":"Forbidden/7.7",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/7.7' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/7.8",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/7.8' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    }
@@ -360,7 +359,7 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
 ### forbidden.py
 
 ```fundamental
-Forbidden v7.7 ( github.com/ivan-sincek/forbidden )
+Forbidden v7.8 ( github.com/ivan-sincek/forbidden )
 
 Usage:   python3 forbidden.py -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
 Example: python3 forbidden.py -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
@@ -407,10 +406,11 @@ THREADS
     Number of parallel threads to run
     More threads make it quicker but can give worse results
     Heavily depends on network bandwidth and server capacity
+    Default: 5
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/7.7
+    Default: Forbidden/7.8
     -a <agent> - curl/3.30.1 | etc.
 PROXY
     Web proxy to use
@@ -423,7 +423,7 @@ OUT
 ### stresser.py
 
 ```fundamental
-Stresser v2.7 ( github.com/ivan-sincek/forbidden )
+Stresser v2.8 ( github.com/ivan-sincek/forbidden )
 
 Usage:   python3 stresser.py -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: python3 stresser.py -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -458,7 +458,7 @@ LENGTHS
     -l <lengths> - 12 | base | etc.
 AGENT
     User agent to use
-    Default: Stresser/2.7
+    Default: Stresser/2.8
     -a <agent> - curl/3.30.1 | etc.
 PROXY
     Web proxy to use

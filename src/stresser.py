@@ -20,7 +20,7 @@ start = datetime.datetime.now()
 def basic():
 	global proceed
 	proceed = False
-	print("Stresser v2.7 ( github.com/ivan-sincek/forbidden )")
+	print("Stresser v2.8 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   python3 stresser.py -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 	print("Example: python3 stresser.py -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -58,7 +58,7 @@ def advanced():
 	print("    -l <lengths> - 12 | base | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Stresser/2.7")
+	print("    Default: Stresser/2.8")
 	print("    -a <agent> - curl/3.30.1 | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -502,7 +502,7 @@ def parse_results(results):
 	# --------------------
 	return tmp
 
-def bypass(collection, threads = 1):
+def bypass(collection, threads = 5):
 	results = []
 	count = 0
 	total = len(collection)
@@ -521,7 +521,7 @@ if proceed and check_directory(args["directory"]):
 	os.chdir(args["directory"])
 	print("#######################################################################")
 	print("#                                                                     #")
-	print("#                            Stresser v2.7                            #")
+	print("#                            Stresser v2.8                            #")
 	print("#                                by Ivan Sincek                       #")
 	print("#                                                                     #")
 	print("# Bypass 4xx HTTP response status codes with stress testing.          #")
@@ -531,7 +531,7 @@ if proceed and check_directory(args["directory"]):
 	print("#######################################################################")
 	# --------------------
 	if not args["agent"]:
-		args["agent"] = "Stresser/2.7"
+		args["agent"] = "Stresser/2.8"
 	# --------------------
 	url = parse_url(args["url"])
 	ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
