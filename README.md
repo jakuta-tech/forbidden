@@ -47,13 +47,14 @@ Made for educational purposes. I hope it will help!
 * some web proxies might modify some HTTP requests (e.g. the ones in the `encoding` scope),
 * beware of `rate limiting` and other similar protections, take some time before you run the script again on the same domain,
 * connection timeout is set to `90` seconds, and response timeout is set to `180` seconds,
-* average runtime for all tests on a single thread is `12` minutes, optimal no. of threads is `5`,
-* `length` attribute from results includes only HTTP response body length,
+* average runtime for all tests on a single thread is `12` minutes; optimal no. of threads is `5`,
+* `length` attribute in results includes only HTTP response body length,
 * cross-site tracing (XST) is `no more` considered to be a vulnerability,
-* cURL commands to test double `Host` header don't work properly because cURL doesn't allow that - I had to send web requests using `requests` library.
+* cURL commands to test double `Host` header don't work properly because cURL doesn't allow that - I had to send HTTP requests using `requests` library.
 
 **High priority plans:**
 
+* more path bypasses,
 * add option to wait/sleep between requests on a single thread,
 * scope tests to only allowed HTTP methods (fetched with HTTP OPTIONS method),
 * do not ignore URL parameters and fragments,
