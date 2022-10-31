@@ -22,7 +22,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Stresser v3.1 ( github.com/ivan-sincek/forbidden )")
+	print("Stresser v3.2 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 	print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -60,7 +60,7 @@ def advanced():
 	print("    -l <lengths> - 12 | base | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Stresser/3.1")
+	print("    Default: Stresser/3.2")
 	print("    -a <agent> - curl/3.30.1 | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -376,8 +376,14 @@ def send_request(record):
 		response = session.send(prepared, proxies = proxies, timeout = 180, verify = False, allow_redirects = True)
 		record["code"] = response.status_code
 		record["length"] = len(response.content)
-		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.content.decode("ISO-8859-1"), re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
+		data = response.content.decode("ISO-8859-1")
+		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], data, re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
 			record["code"] = 0
+		record["id"] = ("{0}-{1}-{2}").format(record["id"], record["code"], record["length"])
+		file = ("{0}.txt").format(record["id"])
+		# NOTE: Additional validation to prevent congestion from writing large and usless data to files.
+		if record["code"] >= 200 and record["code"] < 400 and not os.path.exists(file):
+			open(file, "w").write(data)
 	except requests.exceptions.RequestException:
 		pass
 	finally:
@@ -516,7 +522,7 @@ def main():
 		os.chdir(args["directory"])
 		print("#######################################################################")
 		print("#                                                                     #")
-		print("#                            Stresser v3.1                            #")
+		print("#                            Stresser v3.2                            #")
 		print("#                                by Ivan Sincek                       #")
 		print("#                                                                     #")
 		print("# Bypass 4xx HTTP response status codes with stress testing.          #")
@@ -526,7 +532,7 @@ def main():
 		print("#######################################################################")
 		# --------------------
 		if not args["agent"]:
-			args["agent"] = "Stresser/3.1"
+			args["agent"] = "Stresser/3.2"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
