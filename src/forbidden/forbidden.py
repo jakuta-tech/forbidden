@@ -10,7 +10,6 @@ import base64
 import concurrent.futures
 import subprocess
 import io
-import pycurl
 import requests
 import termcolor
 import json
@@ -24,10 +23,10 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v7.8 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v7.9 ( github.com/ivan-sincek/forbidden )")
 	print("")
-	print("Usage:   python3 forbidden.py -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
-	print("Example: python3 forbidden.py -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
+	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
+	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
 
 def advanced():
 	basic()
@@ -78,7 +77,7 @@ def advanced():
 	print("    -th <threads> - 200 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/7.8")
+	print("    Default: Forbidden/7.9")
 	print("    -a <agent> - curl/3.30.1 | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -403,15 +402,15 @@ def validate(key, value):
 		elif key == "-v" and args["values"] is None:
 			args["values"] = value
 			if not os.path.isfile(args["values"]):
-				error("File does not exists")
+				error("File with additional values does not exists")
 			elif not os.access(args["values"], os.R_OK):
-				error("File does not have read permission")
+				error("File with additional values does not have read permission")
 			elif not os.stat(args["values"]).st_size > 0:
-				error("File is empty")
+				error("File with additional values is empty")
 			else:
 				args["values"] = read_file(args["values"])
 				if not args["values"]:
-					error("No HTTP header values were found")
+					error("No additional values were found")
 		elif key == "-p" and args["path"] is None:
 			args["path"] = prepend_slash(replace_multiple_slashes(value))
 		elif key == "-e" and args["evil"] is None:
@@ -421,15 +420,15 @@ def validate(key, value):
 		elif key == "-l" and args["lengths"] is None:
 			args["lengths"] = parse_content_lengths(value.lower(), ["base", "path"])
 			if not args["lengths"]:
-				error("Content length must be either 'base', 'path', or numeric and equal or greater than zero")
+				error("Content length must be either 'base', 'path', or numeric equal or greater than zero")
 		elif key == "-th" and args["threads"] is None:
 			args["threads"] = value
 			if not args["threads"].isdigit():
-				error("Number of parallel threads must be numeric")
+				error("Number of parallel threads to run must be numeric")
 			else:
 				args["threads"] = int(args["threads"])
 				if args["threads"] < 1:
-					error("Number of parallel threads must be greater than zero")
+					error("Number of parallel threads to run must be greater than zero")
 		elif key == "-a" and args["agent"] is None:
 			args["agent"] = value
 		elif key == "-x" and args["proxy"] is None:
@@ -444,33 +443,14 @@ def check(argc, args):
 			count += 1
 	return argc - count == argc / 2
 
-argc = len(sys.argv) - 1
-
-if argc == 0:
-	advanced()
-elif argc == 1:
-	if sys.argv[1] == "-h":
-		basic()
-	elif sys.argv[1] == "--help":
-		advanced()
-	else:
-		error("Incorrect usage", True)
-elif argc % 2 == 0 and argc <= len(args) * 2:
-	for i in range(1, argc, 2):
-		validate(sys.argv[i], sys.argv[i + 1])
-	if args["url"] is None or args["tests"] is None or not check(argc, args):
-		error("Missing a mandatory option (-u, -t) and/or optional (-f, -v, -p, -e, -i, -l, -th, -a, -x, -o)", True)
-else:
-	error("Incorrect usage", True)
-
 # --------------------- VALIDATION END ---------------------
 
 # ------------------- TEST RECORDS BEGIN -------------------
 
-def record(raw, identifier, url, method, headers, body, ignore, agent, proxy, curl):
-	return {"raw": raw, "id": identifier, "url": url, "method": method, "headers": headers, "body": body, "ignore": ignore, "agent": agent, "proxy": proxy, "command": None, "code": 0, "length": 0, "curl": curl}
+def record(raw, identifier, url, method, headers, body, ignore, agent, proxy):
+	return {"raw": raw, "id": identifier, "url": url, "method": method, "headers": headers, "body": body, "ignore": ignore, "agent": agent, "proxy": proxy, "command": None, "code": 0, "length": 0}
 
-def get_records(identifier, append, urls, methods, headers = None, body = None, ignore = None, agent = None, proxy = None, curl = True):
+def get_records(identifier, append, urls, methods, headers = None, body = None, ignore = None, agent = None, proxy = None):
 	if not isinstance(urls, list):
 		urls = [urls]
 	records = []
@@ -479,24 +459,23 @@ def get_records(identifier, append, urls, methods, headers = None, body = None, 
 			for method in methods:
 				for header in headers:
 					identifier += 1
-					records.append(record(identifier, str(identifier) + append.upper(), url, method, header if isinstance(header, list) else [header], body, ignore, agent, proxy, curl))
+					records.append(record(identifier, str(identifier) + append.upper(), url, method, header if isinstance(header, list) else [header], body, ignore, agent, proxy))
 	else:
 		for url in urls:
 			for method in methods:
 				identifier += 1
-				records.append(record(identifier, str(identifier) + append.upper(), url, method, [], body, ignore, agent, proxy, curl))
+				records.append(record(identifier, str(identifier) + append.upper(), url, method, [], body, ignore, agent, proxy))
 	return records
 
-def fetch(url, method, headers = None, body = None, ignore = None, agent = None, proxy = None, curl = True):
-	data = record(0, "-FETCH-0", url, method, headers, body, ignore, agent, proxy, curl)
-	return run_curl(data) if curl else run_request(data)
+def fetch(url, method, headers = None, body = None, ignore = None, agent = None, proxy = None):
+	return send_request(record(0, "-FETCH-0", url, method, headers, body, ignore, agent, proxy))
 
-def fetch_accessible(urls, method, headers = None, body = None, ignore = None, agent = None, proxy = None, curl = True):
+def fetch_accessible(urls, method, headers = None, body = None, ignore = None, agent = None, proxy = None):
 	if not isinstance(urls, list):
 		urls = [urls]
 	records = []
 	for url in urls:
-		record = fetch(url, method, headers, body, ignore, agent, proxy, curl)
+		record = fetch(url, method, headers, body, ignore, agent, proxy)
 		if record["code"] >= 200 and record["code"] < 400:
 			records.append(record)
 	return records
@@ -969,7 +948,7 @@ def get_collection(url, tests, accessible, evil, force = None, values = None, ig
 		collection.extend(records)
 		identifier = len(collection)
 		# NOTE: Test URL override with double 'Host' header.
-		records = get_records(identifier, "-HEADERS-5", url["full"], local["methods"], local["headers"]["hosts"], None, ignore, agent, proxy, False)
+		records = get_records(identifier, "-HEADERS-5", url["full"], local["methods"], local["headers"]["hosts"], None, ignore, agent, proxy)
 		collection.extend(records)
 		identifier = len(collection)
 	if contains(tests, ["paths", "all"]):
@@ -1065,46 +1044,8 @@ def progress(count, total):
 		end = "\n"
 	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = end)
 
-# NOTE: cURL does not allow having two or more of the same HTTP headers.
-def run_curl(record):
-	encoding = "UTF-8"
-	response = io.BytesIO()
-	curl = pycurl.Curl()
-	curl.setopt(pycurl.CONNECTTIMEOUT, 90)
-	curl.setopt(pycurl.TIMEOUT, 180)
-	curl.setopt(pycurl.VERBOSE, False)
-	curl.setopt(pycurl.SSL_VERIFYPEER, False)
-	curl.setopt(pycurl.SSL_VERIFYHOST, False)
-	curl.setopt(pycurl.FOLLOWLOCATION, True)
-	curl.setopt(pycurl.MAXREDIRS, 10)
-	curl.setopt(pycurl.PATH_AS_IS, True)
-	if record["body"]:
-		curl.setopt(pycurl.POSTFIELDS, record["body"].encode(encoding))
-	if record["headers"]:
-		curl.setopt(pycurl.HTTPHEADER, [header.encode(encoding) for header in record["headers"]])
-	if record["agent"]:
-		curl.setopt(pycurl.USERAGENT, record["agent"].encode(encoding))
-	if record["proxy"]:
-		curl.setopt(pycurl.PROXY, record["proxy"].encode(encoding))
-	curl.setopt(pycurl.CUSTOMREQUEST, record["method"])
-	curl.setopt(pycurl.URL, record["url"].encode(encoding))
-	curl.setopt(pycurl.WRITEDATA, response)
-	try:
-		curl.perform()
-		record["code"] = int(curl.getinfo(pycurl.RESPONSE_CODE))
-		record["length"] = int(curl.getinfo(pycurl.SIZE_DOWNLOAD))
-		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.getvalue().decode("ISO-8859-1"), re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
-			record["code"] = 0
-	except pycurl.error:
-		pass
-	finally:
-		response.close()
-		curl.close()
-	return record
-
-# NOTE: Use instead of cURL where needed.
 # TO DO: Fix bugs and optimize.
-def run_request(record):
+def send_request(record):
 	encoding = "UTF-8"
 	if record["body"]:
 		record["body"].encode(encoding)
@@ -1112,7 +1053,7 @@ def run_request(record):
 	if record["headers"]:
 		for header in record["headers"]:
 			array = header.split(": ", 1)
-			headers[uniquestr(array[0]) if array[0] in headers else array[0]] = array[1].encode(encoding)
+			headers[uniquestr(array[0]) if array[0] in headers else array[0]] = array[1].encode(encoding) # supports duplicate headers
 	if record["agent"]:
 		headers["User-Agent"] = record["agent"].encode(encoding)
 	proxies = {}
@@ -1192,7 +1133,7 @@ def parse_results(results):
 	# --------------------
 	results = [record for record in results if record["code"] > 0]
 	results = sorted(results, key = lambda x: (x["code"], -x["length"], x["raw"]))
-	results = remove(results, ["raw", "ignore", "proxy", "curl"])
+	results = remove(results, ["raw", "ignore", "proxy"])
 	for record in results:
 		if record["code"] >= 500:
 			continue
@@ -1219,64 +1160,87 @@ def bypass(collection, threads = 10):
 	get_timestamp("Running tests...")
 	progress(count, total)
 	with concurrent.futures.ThreadPoolExecutor(max_workers = threads) as executor:
-		subprocesses = {executor.submit(run_curl if record["curl"] else run_request, record): record for record in collection}
+		subprocesses = {executor.submit(send_request, record): record for record in collection}
 		for subprocess in concurrent.futures.as_completed(subprocesses):
 			results.append(subprocess.result())
 			count += 1
 			progress(count, total)
 	return results
 
-if proceed:
-	print("######################################################################")
-	print("#                                                                    #")
-	print("#                           Forbidden v7.8                           #")
-	print("#                                by Ivan Sincek                      #")
-	print("#                                                                    #")
-	print("# Bypass 4xx HTTP response status codes and more.                    #")
-	print("# GitHub repository at github.com/ivan-sincek/forbidden.             #")
-	print("# Feel free to donate bitcoin at 1BrZM6T7G9RN8vbabnfXu4M6Lpgztq6Y14. #")
-	print("#                                                                    #")
-	print("######################################################################")
-	# --------------------
-	if not args["path"]:
-		args["path"] = ["/robots.txt"]
-	if not args["evil"]:
-		args["evil"] = "github.com"
-	if not args["threads"]:
-		args["threads"] = 5
-	if not args["agent"]:
-		args["agent"] = "Forbidden/7.8"
-	# --------------------
-	url = parse_url(args["url"])
-	ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
-	# --------------------
-	# NOTE: Fetch content length of base HTTP response.
-	if "base" in ignore["lengths"]:
-		ignore["lengths"].append(fetch(url["full"], args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)["length"])
-		ignore["lengths"].pop(ignore["lengths"].index("base"))
-	# --------------------
-	# NOTE: Fetch accessible URLs.
-	records = fetch_accessible(append_paths(url["scheme_domain"], args["path"]), args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)
-	accessible = unique([record["url"] for record in records])
-	if "path" in ignore["lengths"]:
-		ignore["lengths"].extend([record["length"] for record in records])
-		ignore["lengths"].pop(ignore["lengths"].index("path"))
-	# --------------------
-	# NOTE: Fetch base domain IPs.
-	ips = fetch_ips(url["domain_no_port"])
-	values = args["values"] + ips if args["values"] else ips
-	# --------------------
-	collection = get_collection(url, args["tests"], accessible, args["evil"], args["force"], values, ignore, args["agent"], args["proxy"])
-	if not collection:
-		print("No test records were created")
-	else:
-		results = parse_results(bypass(filter(get_commands(collection)), args["threads"]))
-		if not results:
-			print("No result matched the validation criteria")
+def main():
+	argc = len(sys.argv) - 1
+
+	if argc == 0:
+		advanced()
+	elif argc == 1:
+		if sys.argv[1] == "-h":
+			basic()
+		elif sys.argv[1] == "--help":
+			advanced()
 		else:
-			print(("Number of valid results: {0}").format(len(results)))
-			if args["out"]:
-				write_file(jdump(results), args["out"])
-	print(("Script has finished in {0}").format(datetime.datetime.now() - start))
+			error("Incorrect usage", True)
+	elif argc % 2 == 0 and argc <= len(args) * 2:
+		for i in range(1, argc, 2):
+			validate(sys.argv[i], sys.argv[i + 1])
+		if args["url"] is None or args["tests"] is None or not check(argc, args):
+			error("Missing a mandatory option (-u, -t) and/or optional (-f, -v, -p, -e, -i, -l, -th, -a, -x, -o)", True)
+	else:
+		error("Incorrect usage", True)
+
+	if proceed:
+		print("######################################################################")
+		print("#                                                                    #")
+		print("#                           Forbidden v7.9                           #")
+		print("#                                by Ivan Sincek                      #")
+		print("#                                                                    #")
+		print("# Bypass 4xx HTTP response status codes and more.                    #")
+		print("# GitHub repository at github.com/ivan-sincek/forbidden.             #")
+		print("# Feel free to donate bitcoin at 1BrZM6T7G9RN8vbabnfXu4M6Lpgztq6Y14. #")
+		print("#                                                                    #")
+		print("######################################################################")
+		# --------------------
+		if not args["path"]:
+			args["path"] = ["/robots.txt"]
+		if not args["evil"]:
+			args["evil"] = "github.com"
+		if not args["threads"]:
+			args["threads"] = 5
+		if not args["agent"]:
+			args["agent"] = "Forbidden/7.9"
+		# --------------------
+		url = parse_url(args["url"])
+		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
+		# --------------------
+		# NOTE: Fetch content length of base HTTP response.
+		if "base" in ignore["lengths"]:
+			ignore["lengths"].append(fetch(url["full"], args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)["length"])
+			ignore["lengths"].pop(ignore["lengths"].index("base"))
+		# --------------------
+		# NOTE: Fetch accessible URLs.
+		records = fetch_accessible(append_paths(url["scheme_domain"], args["path"]), args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)
+		accessible = unique([record["url"] for record in records])
+		if "path" in ignore["lengths"]:
+			ignore["lengths"].extend([record["length"] for record in records])
+			ignore["lengths"].pop(ignore["lengths"].index("path"))
+		# --------------------
+		# NOTE: Fetch base domain IPs.
+		ips = fetch_ips(url["domain_no_port"])
+		values = args["values"] + ips if args["values"] else ips
+		# --------------------
+		collection = get_collection(url, args["tests"], accessible, args["evil"], args["force"], values, ignore, args["agent"], args["proxy"])
+		if not collection:
+			print("No test records were created")
+		else:
+			results = parse_results(bypass(filter(get_commands(collection)), args["threads"]))
+			if not results:
+				print("No result matched the validation criteria")
+			else:
+				print(("Number of valid results: {0}").format(len(results)))
+				if args["out"]:
+					write_file(jdump(results), args["out"])
+		print(("Script has finished in {0}").format(datetime.datetime.now() - start))
+
+if __name__ == "__main__":
+	main()
 
 # ------------------------ TASK END ------------------------

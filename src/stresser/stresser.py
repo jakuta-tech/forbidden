@@ -9,21 +9,23 @@ import re
 import concurrent.futures
 import subprocess
 import io
-import pycurl
+import requests
 import termcolor
 import json
 
 start = datetime.datetime.now()
+
+requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
 
 # -------------------------- INFO --------------------------
 
 def basic():
 	global proceed
 	proceed = False
-	print("Stresser v2.8 ( github.com/ivan-sincek/forbidden )")
+	print("Stresser v2.9 ( github.com/ivan-sincek/forbidden )")
 	print("")
-	print("Usage:   python3 stresser.py -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
-	print("Example: python3 stresser.py -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
+	print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
+	print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
 
 def advanced():
 	basic()
@@ -58,7 +60,7 @@ def advanced():
 	print("    -l <lengths> - 12 | base | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Stresser/2.8")
+	print("    Default: Stresser/2.9")
 	print("    -a <agent> - curl/3.30.1 | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -214,19 +216,19 @@ def validate(key, value):
 		elif key == "-r" and args["repeat"] is None:
 			args["repeat"] = value
 			if not args["repeat"].isdigit():
-				error("Number of HTTP requests must be numeric")
+				error("Number of HTTP requests to send must be numeric")
 			else:
 				args["repeat"] = int(args["repeat"])
 				if args["repeat"] < 1:
-					error("Number of HTTP requests must be greater than zero")
+					error("Number of HTTP requests to send must be greater than zero")
 		elif key == "-th" and args["threads"] is None:
 			args["threads"] = value
 			if not args["threads"].isdigit():
-				error("Number of parallel threads must be numeric")
+				error("Number of parallel threads to run must be numeric")
 			else:
 				args["threads"] = int(args["threads"])
 				if args["threads"] < 1:
-					error("Number of parallel threads must be greater than zero")
+					error("Number of parallel threads to run must be greater than zero")
 		elif key == "-f" and args["force"] is None:
 			args["force"] = value.upper()
 		elif key == "-i" and args["ignore"] is None:
@@ -248,25 +250,6 @@ def check(argc, args):
 		if args[key] is not None:
 			count += 1
 	return argc - count == argc / 2
-
-argc = len(sys.argv) - 1
-
-if argc == 0:
-	advanced()
-elif argc == 1:
-	if sys.argv[1] == "-h":
-		basic()
-	elif sys.argv[1] == "--help":
-		advanced()
-	else:
-		error("Incorrect usage", True)
-elif argc % 2 == 0 and argc <= len(args) * 2:
-	for i in range(1, argc, 2):
-		validate(sys.argv[i], sys.argv[i + 1])
-	if args["url"] is None or args["directory"] is None or args["repeat"] is None or args["threads"] is None or not check(argc, args):
-		error("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-f, -i, -l, -a, -x, -o)", True)
-else:
-	error("Incorrect usage", True)
 
 # --------------------- VALIDATION END ---------------------
 
@@ -295,7 +278,7 @@ def get_records(identifier, append, repeat, urls, methods, headers = None, body 
 	return records
 
 def fetch(url, method, headers = None, body = None, ignore = None, agent = None, proxy = None):
-	return run_curl(record(0, "-FETCH-0", url, method, headers, body, ignore, agent, proxy))
+	return send_request(record(0, "-FETCH-0", url, method, headers, body, ignore, agent, proxy))
 
 # -------------------- TEST RECORDS END --------------------
 
@@ -369,46 +352,38 @@ def progress(count, total):
 		end = "\n"
 	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = end)
 
-def run_curl(record):
+def send_request(record):
 	encoding = "UTF-8"
-	response = io.BytesIO()
-	curl = pycurl.Curl()
-	curl.setopt(pycurl.CONNECTTIMEOUT, 90)
-	curl.setopt(pycurl.TIMEOUT, 180)
-	curl.setopt(pycurl.VERBOSE, False)
-	curl.setopt(pycurl.SSL_VERIFYPEER, False)
-	curl.setopt(pycurl.SSL_VERIFYHOST, False)
-	curl.setopt(pycurl.FOLLOWLOCATION, True)
-	curl.setopt(pycurl.MAXREDIRS, 10)
-	curl.setopt(pycurl.PATH_AS_IS, True)
 	if record["body"]:
-		curl.setopt(pycurl.POSTFIELDS, record["body"].encode(encoding))
+		record["body"].encode(encoding)
+	headers = {}
 	if record["headers"]:
-		curl.setopt(pycurl.HTTPHEADER, [header.encode(encoding) for header in record["headers"]])
+		for header in record["headers"]:
+			array = header.split(": ", 1)
+			headers[uniquestr(array[0]) if array[0] in headers else array[0]] = array[1].encode(encoding)
 	if record["agent"]:
-		curl.setopt(pycurl.USERAGENT, record["agent"].encode(encoding))
+		headers["User-Agent"] = record["agent"].encode(encoding)
+	proxies = {}
 	if record["proxy"]:
-		curl.setopt(pycurl.PROXY, record["proxy"].encode(encoding))
-	curl.setopt(pycurl.CUSTOMREQUEST, record["method"])
-	curl.setopt(pycurl.URL, record["url"].encode(encoding))
-	curl.setopt(pycurl.WRITEDATA, response)
+		proxies["http"] = proxies["https"] = record["proxy"]
+	response = None
+	session = requests.Session()
+	session.max_redirects = 10
 	try:
-		curl.perform()
-		record["code"] = int(curl.getinfo(pycurl.RESPONSE_CODE))
-		record["length"] = int(curl.getinfo(pycurl.SIZE_DOWNLOAD))
-		data = response.getvalue().decode("ISO-8859-1")
-		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], data, re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
+		request = requests.Request(record["method"], record["url"], headers = headers, data = record["body"])
+		prepared = request.prepare()
+		prepared.url = record["url"]
+		response = session.send(prepared, proxies = proxies, timeout = 180, verify = False, allow_redirects = True)
+		record["code"] = response.status_code
+		record["length"] = len(response.content)
+		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.content.decode("ISO-8859-1"), re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
 			record["code"] = 0
-		record["id"] = ("{0}-{1}-{2}").format(record["id"], record["code"], record["length"])
-		file = ("{0}.txt").format(record["id"])
-		# NOTE: Additional validation to prevent congestion from writing large and usless data to files.
-		if record["code"] >= 200 and record["code"] < 400 and not os.path.exists(file):
-			open(file, "w").write(data)
-	except pycurl.error:
+	except requests.exceptions.RequestException:
 		pass
 	finally:
-		response.close()
-		curl.close()
+		if response is not None:
+			response.close()
+		session.close()
 	return record
 
 def filter(collection):
@@ -510,50 +485,73 @@ def bypass(collection, threads = 5):
 	get_timestamp("Running tests...")
 	progress(count, total)
 	with concurrent.futures.ThreadPoolExecutor(max_workers = threads) as executor:
-		subprocesses = {executor.submit(run_curl, record): record for record in collection}
+		subprocesses = {executor.submit(send_request, record): record for record in collection}
 		for subprocess in concurrent.futures.as_completed(subprocesses):
 			results.append(subprocess.result())
 			count += 1
 			progress(count, total)
 	return results
 
-if proceed and check_directory(args["directory"]):
-	os.chdir(args["directory"])
-	print("#######################################################################")
-	print("#                                                                     #")
-	print("#                            Stresser v2.8                            #")
-	print("#                                by Ivan Sincek                       #")
-	print("#                                                                     #")
-	print("# Bypass 4xx HTTP response status codes with stress testing.          #")
-	print("# GitHub repository at github.com/ivan-sincek/forbidden.              #")
-	print("# Feel free to donate bitcoin at 1BrZM6T7G9RN8vbabnfXu4M6Lpgztq6Y14.  #")
-	print("#                                                                     #")
-	print("#######################################################################")
-	# --------------------
-	if not args["agent"]:
-		args["agent"] = "Stresser/2.8"
-	# --------------------
-	url = parse_url(args["url"])
-	ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
-	# --------------------
-	# NOTE: Fetch content length of base HTTP response.
-	if "base" in ignore["lengths"]:
-		ignore["lengths"].append(fetch(url["full"], args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)["length"])
-		ignore["lengths"].pop(ignore["lengths"].index("base"))
-	# --------------------
-	collection = get_collection(url, args["repeat"], args["force"], ignore, args["agent"], args["proxy"])
-	if not collection:
-		print("No test records were created")
-		remove_directory(args["directory"])
+def main():
+	argc = len(sys.argv) - 1
+
+	if argc == 0:
+		advanced()
+	elif argc == 1:
+		if sys.argv[1] == "-h":
+			basic()
+		elif sys.argv[1] == "--help":
+			advanced()
+		else:
+			error("Incorrect usage", True)
+	elif argc % 2 == 0 and argc <= len(args) * 2:
+		for i in range(1, argc, 2):
+			validate(sys.argv[i], sys.argv[i + 1])
+		if args["url"] is None or args["directory"] is None or args["repeat"] is None or args["threads"] is None or not check(argc, args):
+			error("Missing a mandatory option (-u, -dir, -r, -th) and/or optional (-f, -i, -l, -a, -x, -o)", True)
 	else:
-		results = parse_results(bypass(get_commands(collection), args["threads"]))
-		if not results:
-			print("No result matched the validation criteria")
+		error("Incorrect usage", True)
+
+	if proceed and check_directory(args["directory"]):
+		os.chdir(args["directory"])
+		print("#######################################################################")
+		print("#                                                                     #")
+		print("#                            Stresser v2.9                            #")
+		print("#                                by Ivan Sincek                       #")
+		print("#                                                                     #")
+		print("# Bypass 4xx HTTP response status codes with stress testing.          #")
+		print("# GitHub repository at github.com/ivan-sincek/forbidden.              #")
+		print("# Feel free to donate bitcoin at 1BrZM6T7G9RN8vbabnfXu4M6Lpgztq6Y14.  #")
+		print("#                                                                     #")
+		print("#######################################################################")
+		# --------------------
+		if not args["agent"]:
+			args["agent"] = "Stresser/2.9"
+		# --------------------
+		url = parse_url(args["url"])
+		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
+		# --------------------
+		# NOTE: Fetch content length of base HTTP response.
+		if "base" in ignore["lengths"]:
+			ignore["lengths"].append(fetch(url["full"], args["force"] if args["force"] else "GET", None, None, None, args["agent"], None)["length"])
+			ignore["lengths"].pop(ignore["lengths"].index("base"))
+		# --------------------
+		collection = get_collection(url, args["repeat"], args["force"], ignore, args["agent"], args["proxy"])
+		if not collection:
+			print("No test records were created")
 			remove_directory(args["directory"])
 		else:
-			print(("Number of valid results: {0}").format(len(results)))
-			if args["out"]:
-				write_file(jdump(results), args["out"])
-	print(("Script has finished in {0}").format(datetime.datetime.now() - start))
+			results = parse_results(bypass(get_commands(collection), args["threads"]))
+			if not results:
+				print("No result matched the validation criteria")
+				remove_directory(args["directory"])
+			else:
+				print(("Number of valid results: {0}").format(len(results)))
+				if args["out"]:
+					write_file(jdump(results), args["out"])
+		print(("Script has finished in {0}").format(datetime.datetime.now() - start))
+
+if __name__ == "__main__":
+	main()
 
 # ------------------------ TASK END ------------------------

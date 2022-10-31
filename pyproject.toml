@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "requests>=2.27.1", "termcolor>=1.1.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forbidden"
+version = "8.0"
+authors = [{ name = "Ivan Sincek" }]
+description = "Bypass 4xx HTTP response status codes and more."
+readme = "README.md"
+requires-python = ">=3.6"
+classifiers = [
+	"Programming Language :: Python :: 3",
+	"License :: OSI Approved :: MIT License",
+	"Operating System :: OS Independent"
+]
+
+[project.urls]
+"Homepage" = "https://github.com/ivan-sincek/forbidden"
+
+[project.scripts]
+forbidden = "forbidden.forbidden:main"
+stresser = "stresser.stresser:main"

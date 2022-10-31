@@ -1,6 +1,6 @@
 # Forbidden
 
-Bypass 4xx HTTP response status codes and more. Based on `PycURL`.
+Bypass 4xx HTTP response status codes and more.
 
 Script uses multithreading and is based on brute forcing, so it might have some false positive results. Script has colored output.
 
@@ -27,7 +27,7 @@ To manually filter out false positive results, for each unique content length, r
 
 ---
 
-Check the stress testing script [here](https://github.com/ivan-sincek/forbidden/blob/main/src/stresser.py). Inspired by this [write-up](https://amineaboud.medium.com/story-of-a-weird-vulnerability-i-found-on-facebook-fc0875eb5125).
+Check the stress testing script [here](https://github.com/ivan-sincek/forbidden/blob/main/src/stresser/stresser.py). Inspired by this [write-up](https://amineaboud.medium.com/story-of-a-weird-vulnerability-i-found-on-facebook-fc0875eb5125).
 
 Extend the scripts to your liking.
 
@@ -50,7 +50,7 @@ Made for educational purposes. I hope it will help!
 * average runtime for all tests on a single thread is `12` minutes; optimal no. of threads is `5`,
 * `length` attribute in results includes only HTTP response body length,
 * cross-site tracing (XST) is `no more` considered to be a vulnerability,
-* cURL commands to test double `Host` header don't work properly because cURL doesn't allow that - I had to send HTTP requests using `requests` library.
+* cURL commands to test double `Host` header don't work properly because cURL doesn't allow that - I am sending HTTP requests using `requests` library.
 
 **High priority plans:**
 
@@ -64,7 +64,8 @@ Made for educational purposes. I hope it will help!
 
 * Log4j support,
 * table output to make results more readable and take less space,
-* add option to test custom HTTP header-value pairs for a list of domains/subdomains.
+* add option to test custom HTTP header-value pairs for a list of domains/subdomains,
+* add option to randomly assign user agents per request.
 
 ## Table of Contents
 
@@ -75,29 +76,27 @@ Made for educational purposes. I hope it will help!
 * [URL Paths](#url-paths)
 * [Results Format](#results-format)
 * [Usage](#usage)
-	* [forbidden.py](#forbiddenpy)
-	* [stresser.py](#stresserpy)
 
-## How to Run
+## How to Install
 
-Open your preferred console from [/src/](https://github.com/ivan-sincek/forbidden/tree/main/src) and run the commands shown below.
+```bash
+pip3 install forbidden
 
-Install required tools:
-
-```fundamental
-apt-get install -y curl
+pip3 install --upgrade forbidden
 ```
 
-Install required packages:
+## How to Build and Install Manually
 
-```fundamental
-pip3 install -r requirements.txt
-```
+Run the following commands:
 
-Run the script:
+```bash
+git clone https://github.com/ivan-sincek/forbidden && cd forbidden
 
-```fundamental
-python3 forbidden.py
+python3 -m pip install --upgrade build
+
+python3 -m build
+
+python3 -m pip install dist/forbidden-8.0-py3-none-any.whl
 ```
 
 ## Automation
@@ -105,31 +104,31 @@ python3 forbidden.py
 Bypass `403 Forbidden` HTTP response status code:
 
 ```bash
-count=0; for subdomain in $(cat subdomains_403.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; python3 forbidden.py -u "${subdomain}" -t methods,method-overrides,scheme-overrides,port-overrides,headers,paths,encodings -f GET -l base,path -o "forbidden_403_results_${count}.json"; done
+count=0; for subdomain in $(cat subdomains_403.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t methods,method-overrides,scheme-overrides,port-overrides,headers,paths,encodings -f GET -l base,path -o "forbidden_403_results_${count}.json"; done
 ```
 
 Bypass `403 Forbidden` HTTP response status code with stress testing:
 
 ```bash
-count=0; for subdomain in $(cat subdomains_403.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; python3 stresser.py -u "${subdomain}" -dir "stresser_403_results_${count}" -r 1000 -th 200 -f GET -l base -o "stresser_403_results_${count}.json"; done
+count=0; for subdomain in $(cat subdomains_403.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; stresser -u "${subdomain}" -dir "stresser_403_results_${count}" -r 1000 -th 200 -f GET -l base -o "stresser_403_results_${count}.json"; done
 ```
 
 Bypass `401 Unauthorized` HTTP response status code:
 
 ```bash
-count=0; for subdomain in $(cat subdomains_401.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; python3 forbidden.py -u "${subdomain}" -t auths -f GET -l base -o "forbidden_401_results_${count}.json"; done
+count=0; for subdomain in $(cat subdomains_401.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t auths -f GET -l base -o "forbidden_401_results_${count}.json"; done
 ```
 
 Scan for open redirects and server-side request forgery (SSRF):
 
 ```bash
-count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; python3 forbidden.py -u "${subdomain}" -t redirects -f GET -l base -e xyz.interact.sh -o "forbidden_redirect_results_${count}.json"; done
+count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t redirects -f GET -l base -e xyz.interact.sh -o "forbidden_redirect_results_${count}.json"; done
 ```
 
 Scan for broken URL parsers:
 
 ```bash
-count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; python3 forbidden.py -u "${subdomain}" -t parsers -f GET -l base -e xyz.interact.sh -o "forbidden_parser_results_${count}.json"; done
+count=0; for subdomain in $(cat subdomains_live_long.txt); do count=$((count+1)); echo "#${count} | ${subdomain}"; forbidden -u "${subdomain}" -t parsers -f GET -l base -e xyz.interact.sh -o "forbidden_parser_results_${count}.json"; done
 ```
 
 # HTTP Methods
@@ -334,8 +333,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1"
       ],
       "body":null,
-      "agent":"Forbidden/7.8",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/7.8' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/7.9",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/7.9' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    },
@@ -347,8 +346,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1:443"
       ],
       "body":null,
-      "agent":"Forbidden/7.8",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/7.8' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/7.9",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/7.9' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    }
@@ -357,13 +356,11 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
 
 ## Usage
 
-### forbidden.py
-
 ```fundamental
-Forbidden v7.8 ( github.com/ivan-sincek/forbidden )
+Forbidden v7.9 ( github.com/ivan-sincek/forbidden )
 
-Usage:   python3 forbidden.py -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
-Example: python3 forbidden.py -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
+Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
+Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
 
 DESCRIPTION
     Bypass 4xx HTTP response status codes and more
@@ -411,7 +408,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/7.8
+    Default: Forbidden/7.9
     -a <agent> - curl/3.30.1 | etc.
 PROXY
     Web proxy to use
@@ -421,13 +418,11 @@ OUT
     -o <out> - results.json | etc.
 ```
 
-### stresser.py
-
 ```fundamental
-Stresser v2.8 ( github.com/ivan-sincek/forbidden )
+Stresser v2.9 ( github.com/ivan-sincek/forbidden )
 
-Usage:   python3 stresser.py -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
-Example: python3 stresser.py -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
+Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
+Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
 
 DESCRIPTION
     Bypass 4xx HTTP response status codes with stress testing
@@ -459,7 +454,7 @@ LENGTHS
     -l <lengths> - 12 | base | etc.
 AGENT
     User agent to use
-    Default: Stresser/2.8
+    Default: Stresser/2.9
     -a <agent> - curl/3.30.1 | etc.
 PROXY
     Web proxy to use
