@@ -23,7 +23,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v7.9 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v8.1 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -77,7 +77,7 @@ def advanced():
 	print("    -th <threads> - 200 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/7.9")
+	print("    Default: Forbidden/8.1")
 	print("    -a <agent> - curl/3.30.1 | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -1190,7 +1190,7 @@ def main():
 	if proceed:
 		print("######################################################################")
 		print("#                                                                    #")
-		print("#                           Forbidden v7.9                           #")
+		print("#                           Forbidden v8.1                           #")
 		print("#                                by Ivan Sincek                      #")
 		print("#                                                                    #")
 		print("# Bypass 4xx HTTP response status codes and more.                    #")
@@ -1206,7 +1206,7 @@ def main():
 		if not args["threads"]:
 			args["threads"] = 5
 		if not args["agent"]:
-			args["agent"] = "Forbidden/7.9"
+			args["agent"] = "Forbidden/8.1"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
