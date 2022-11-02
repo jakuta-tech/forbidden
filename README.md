@@ -96,7 +96,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-8.2-py3-none-any.whl
+python3 -m pip install dist/forbidden-8.4-py3-none-any.whl
 ```
 
 ## Automation
@@ -333,8 +333,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1"
       ],
       "body":null,
-      "agent":"Forbidden/8.2",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/8.2' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/8.4",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/8.4' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    },
@@ -346,8 +346,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1:443"
       ],
       "body":null,
-      "agent":"Forbidden/8.2",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/8.2' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/8.4",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/8.4' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    }
@@ -357,7 +357,7 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
 ## Usage
 
 ```fundamental
-Forbidden v8.2 ( github.com/ivan-sincek/forbidden )
+Forbidden v8.4 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
@@ -408,7 +408,7 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/8.2
+    Default: Forbidden/8.4
     -a <agent> - curl/3.30.1 | etc.
 PROXY
     Web proxy to use

@@ -1,2 +1,2 @@
-include src/*.py
-include src/*.txt
+include src/forbidden/*.py
+include src/stresser/*.py
