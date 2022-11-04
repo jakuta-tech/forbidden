@@ -5,6 +5,7 @@ import sys
 import urllib.parse
 import os
 import re
+import random
 import socket
 import base64
 import concurrent.futures
@@ -23,7 +24,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v8.4 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v8.5 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -77,8 +78,8 @@ def advanced():
 	print("    -th <threads> - 200 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/8.4")
-	print("    -a <agent> - curl/3.30.1 | etc.")
+	print("    Default: Forbidden/8.5")
+	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
 	print("    -x <proxy> - 127.0.0.1:8080 | etc.")
@@ -142,7 +143,7 @@ def strip_url_scheme(string):
 def replace_multiple_slashes(string):
 	return re.sub(r"\/{2,}", "/", string)
 
-def prepend_slash(string):
+def prepend_slash(string = None):
 	const = "/"
 	if not string:
 		string = const
@@ -152,14 +153,16 @@ def prepend_slash(string):
 
 def get_directories(path = None):
 	const = "/"
-	directory = const
-	tmp = [directory]
+	tmp = ["", const]
 	if path:
+		dir_empty = ""
+		dir_const = const
 		array = path.split(const)
 		for entry in array:
 			if entry:
-				directory += entry + const
-				tmp.append(directory)
+				dir_empty += const + entry
+				dir_const += entry + const
+				tmp.extend([dir_empty, dir_const])
 	return unique(tmp)
 
 def append_paths(domains, paths):
@@ -171,7 +174,9 @@ def append_paths(domains, paths):
 	const = "/"
 	for domain in domains:
 		for path in paths:
-			tmp.append(domain.rstrip(const) + prepend_slash(path))
+			if path:
+				path = prepend_slash(path)
+			tmp.append(domain.rstrip(const) + path)
 	return unique(tmp)
 
 def extend_path(path = None):
@@ -187,9 +192,7 @@ def extend_domains(domains_no_port, scheme = None, port = None):
 	if not isinstance(domains_no_port, list):
 		domains_no_port = [domains_no_port]
 	if not port and scheme:
-		port = 80
-		if scheme.lower() == "https":
-			port = 443
+		port = 443 if scheme.lower() == "https" else 80
 	tmp = []
 	for domain_no_port in domains_no_port:
 		tmp.append(domain_no_port)
@@ -212,10 +215,7 @@ def mix(string):
 			break
 	for character in string:
 		if character.isalpha():
-			if upper:
-				character = character.lower()
-			else:
-				character = character.upper()
+			character = character.lower() if upper else character.upper()
 			upper = not upper
 		tmp += character
 	return tmp
@@ -224,7 +224,7 @@ def capitalize(string):
 	tmp = ""
 	changed = False
 	for character in string.lower():
-		if character.isalpha() and not changed:
+		if not changed and character.isalpha():
 			character = character.upper()
 			changed = True
 		tmp += character
@@ -331,7 +331,7 @@ def get_encoded_paths(path):
 	tmp = [prepend + entry + append for entry in tmp]
 	return unique(tmp)
 
-class uniquestr(str):
+class uniquestr(str): # NOTE: For double headers.
 	_lower = None
 	def __hash__(self):
 		return id(self)
@@ -431,6 +431,11 @@ def validate(key, value):
 					error("Number of parallel threads to run must be greater than zero")
 		elif key == "-a" and args["agent"] is None:
 			args["agent"] = value
+			if args["agent"].lower() in ["random", "random-all"]:
+				file = os.path.abspath(os.path.split(__file__)[0]) + os.path.sep + "user_agents.txt"
+				if os.path.isfile(file) and os.access(file, os.R_OK) and os.stat(file).st_size > 0:
+					array = read_file(file)
+					args["agent"] = array[random.randint(0, len(array) - 1)] if args["agent"].lower() == "random" else array
 		elif key == "-x" and args["proxy"] is None:
 			args["proxy"] = value
 		elif key == "-o" and args["out"] is None:
@@ -448,6 +453,8 @@ def check(argc, args):
 # ------------------- TEST RECORDS BEGIN -------------------
 
 def record(raw, identifier, url, method, headers, body, ignore, agent, proxy):
+	if isinstance(agent, list):
+		agent = agent[random.randint(0, len(agent) - 1)]
 	return {"raw": raw, "id": identifier, "url": url, "method": method, "headers": headers, "body": body, "ignore": ignore, "agent": agent, "proxy": proxy, "command": None, "code": 0, "length": 0}
 
 def get_records(identifier, append, urls, methods, headers = None, body = None, ignore = None, agent = None, proxy = None):
@@ -568,9 +575,7 @@ def get_method_override_urls(url, methods):
 		"x-http-method-override",
 		"x-method-override"
 	]
-	separator = "?"
-	if separator in url:
-		separator = "&"
+	separator = "&" if "?" in url else "?"
 	for parameter in parameters:
 		for method in methods:
 			tmp.append(("{0}{1}{2}={3}").format(url, separator, parameter, method))
@@ -592,9 +597,7 @@ def get_scheme_override_headers(schemes):
 	for scheme in schemes:
 		for header in headers:
 			tmp.append(("{0}: {1}").format(header, scheme))
-		status = "off"
-		if scheme.lower() == "https":
-			status = "on"
+		status = "on" if scheme.lower() == "https" else "off"
 		for header in ssl:
 			tmp.append(("{0}: {1}").format(header, status))
 	return unique(tmp)
@@ -811,24 +814,22 @@ def get_broken_urls(scheme, domain_no_port, port, evil):
 
 # TO DO: Do not ignore URL parameters and fragments.
 def parse_url(url):
-	scheme = url.scheme.lower() + "://"
+	scheme = url.scheme.lower()
 	domain = url.netloc.lower()
 	port = url.port
 	if not port:
-		port = 80
-		if url.scheme.lower() == "https":
-			port = 443
+		port = 443 if scheme == "https" else 80
 		domain = ("{0}:{1}").format(domain, port)
 	path = replace_multiple_slashes(url.path)
 	tmp = {
-		"scheme": url.scheme.lower(),
+		"scheme": scheme,
 		"port": port,
-		"domain_no_port": url.netloc.lower().split(":", 1)[0],
+		"domain_no_port": domain.split(":", 1)[0],
 		"domain": domain,
-		"scheme_domain": scheme + domain,
+		"scheme_domain": scheme + "://" + domain,
 		"path": path,
-		"full": scheme + domain + path,
-		"directories": append_paths(scheme + domain, get_directories(path)),
+		"full": scheme + "://" + domain + path,
+		"directories": append_paths(scheme + "://" + domain, get_directories(path)),
 		"paths": extend_path(path)
 	}
 	tmp["urls"] = [tmp["full"], tmp["scheme_domain"], tmp["domain"], tmp["domain_no_port"]]
@@ -1039,10 +1040,7 @@ def get_timestamp(text):
 	return print(("{0} - {1}").format(datetime.datetime.now().strftime("%H:%M:%S"), text))
 
 def progress(count, total):
-	end = "\r"
-	if count == total:
-		end = "\n"
-	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = end)
+	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = "\n" if count == total else "\r")
 
 # TO DO: Fix bugs and optimize.
 def send_request(record):
@@ -1066,7 +1064,7 @@ def send_request(record):
 		request = requests.Request(record["method"], record["url"], headers = headers, data = record["body"])
 		prepared = request.prepare()
 		prepared.url = record["url"]
-		response = session.send(prepared, proxies = proxies, timeout = 180, verify = False, allow_redirects = True)
+		response = session.send(prepared, proxies = proxies, timeout = (90, 180), verify = False, allow_redirects = True)
 		record["code"] = response.status_code
 		record["length"] = len(response.content)
 		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.content.decode("ISO-8859-1"), re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
@@ -1190,7 +1188,7 @@ def main():
 	if proceed:
 		print("######################################################################")
 		print("#                                                                    #")
-		print("#                           Forbidden v8.4                           #")
+		print("#                           Forbidden v8.5                           #")
 		print("#                                by Ivan Sincek                      #")
 		print("#                                                                    #")
 		print("# Bypass 4xx HTTP response status codes and more.                    #")
@@ -1206,7 +1204,7 @@ def main():
 		if not args["threads"]:
 			args["threads"] = 5
 		if not args["agent"]:
-			args["agent"] = "Forbidden/8.4"
+			args["agent"] = "Forbidden/8.5"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}

@@ -43,9 +43,9 @@ Made for educational purposes. I hope it will help!
 
 **Remarks:**
 
-* some websites might require a valid/specific [user agent](https://github.com/danielmiessler/SecLists/blob/master/Fuzzing/User-Agents/UserAgents.fuzz.txt) HTTP request header,
-* some web proxies might modify some HTTP requests (e.g. the ones in the `encoding` scope),
+* some websites might require a valid or very specific 'User-Agent' HTTP request header,
 * beware of `rate limiting` and other similar protections, take some time before you run the script again on the same domain,
+* some web proxies might modify some HTTP requests (e.g. the ones in the `encoding` scope),
 * connection timeout is set to `90` seconds, and response timeout is set to `180` seconds,
 * average runtime for all tests on a single thread is `12` minutes; optimal no. of threads is `5`,
 * `length` attribute in results includes only HTTP response body length,
@@ -64,8 +64,7 @@ Made for educational purposes. I hope it will help!
 
 * Log4j support,
 * table output to make results more readable and take less space,
-* add option to test custom HTTP header-value pairs for a list of domains/subdomains,
-* add option to randomly assign user agents per request.
+* add option to test custom HTTP header-value pairs for a list of domains/subdomains.
 
 ## Table of Contents
 
@@ -96,7 +95,7 @@ python3 -m pip install --upgrade build
 
 python3 -m build
 
-python3 -m pip install dist/forbidden-8.4-py3-none-any.whl
+python3 -m pip install dist/forbidden-8.5-py3-none-any.whl
 ```
 
 ## Automation
@@ -333,8 +332,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1"
       ],
       "body":null,
-      "agent":"Forbidden/8.4",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/8.4' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/8.5",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1' -H 'User-Agent: Forbidden/8.5' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    },
@@ -346,8 +345,8 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
          "Host: 127.0.0.1:443"
       ],
       "body":null,
-      "agent":"Forbidden/8.4",
-      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/8.4' -X 'GET' 'https://example.com:443/admin'",
+      "agent":"Forbidden/8.5",
+      "command":"curl --connect-timeout 90 -m 180 -iskL --max-redirs 10 --path-as-is -H 'Host: 127.0.0.1:443' -H 'User-Agent: Forbidden/8.5' -X 'GET' 'https://example.com:443/admin'",
       "code":200,
       "length":255408
    }
@@ -357,7 +356,7 @@ Inject at the end of URL path, but only if URL path does not end with '/'.
 ## Usage
 
 ```fundamental
-Forbidden v8.4 ( github.com/ivan-sincek/forbidden )
+Forbidden v8.5 ( github.com/ivan-sincek/forbidden )
 
 Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]
 Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]
@@ -408,8 +407,8 @@ THREADS
     -th <threads> - 200 | etc.
 AGENT
     User agent to use
-    Default: Forbidden/8.4
-    -a <agent> - curl/3.30.1 | etc.
+    Default: Forbidden/8.5
+    -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
     -x <proxy> - 127.0.0.1:8080 | etc.
@@ -419,7 +418,7 @@ OUT
 ```
 
 ```fundamental
-Stresser v3.2 ( github.com/ivan-sincek/forbidden )
+Stresser v3.5 ( github.com/ivan-sincek/forbidden )
 
 Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]
 Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]
@@ -454,8 +453,8 @@ LENGTHS
     -l <lengths> - 12 | base | etc.
 AGENT
     User agent to use
-    Default: Stresser/3.2
-    -a <agent> - curl/3.30.1 | etc.
+    Default: Stresser/3.5
+    -a <agent> - curl/3.30.1 | random[-all] | etc.
 PROXY
     Web proxy to use
     -x <proxy> - 127.0.0.1:8080 | etc.

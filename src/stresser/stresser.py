@@ -4,6 +4,7 @@ import datetime
 import sys
 import urllib.parse
 import os
+import random
 import shutil
 import re
 import concurrent.futures
@@ -22,7 +23,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Stresser v3.4 ( github.com/ivan-sincek/forbidden )")
+	print("Stresser v3.5 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 	print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -60,8 +61,8 @@ def advanced():
 	print("    -l <lengths> - 12 | base | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Stresser/3.4")
-	print("    -a <agent> - curl/3.30.1 | etc.")
+	print("    Default: Stresser/3.5")
+	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
 	print("    -x <proxy> - 127.0.0.1:8080 | etc.")
@@ -88,6 +89,16 @@ def parse_content_lengths(value, specials):
 			else:
 				tmp = []
 				break
+	return unique(tmp)
+
+def read_file(file):
+	tmp = []
+	with open(file, "r", encoding = "ISO-8859-1") as stream:
+		for line in stream:
+			line = line.strip()
+			if line:
+				tmp.append(line)
+	stream.close()
 	return unique(tmp)
 
 def remove_directory(directory):
@@ -123,7 +134,7 @@ def check_directory(directory):
 def replace_multiple_slashes(string):
 	return re.sub(r"\/{2,}", "/", string)
 
-def prepend_slash(string):
+def prepend_slash(string = None):
 	const = "/"
 	if not string:
 		string = const
@@ -133,14 +144,16 @@ def prepend_slash(string):
 
 def get_directories(path = None):
 	const = "/"
-	directory = const
-	tmp = [directory]
+	tmp = ["", const]
 	if path:
+		dir_empty = ""
+		dir_const = const
 		array = path.split(const)
 		for entry in array:
 			if entry:
-				directory += entry + const
-				tmp.append(directory)
+				dir_empty += const + entry
+				dir_const += entry + const
+				tmp.extend([dir_empty, dir_const])
 	return unique(tmp)
 
 def append_paths(domains, paths):
@@ -152,7 +165,9 @@ def append_paths(domains, paths):
 	const = "/"
 	for domain in domains:
 		for path in paths:
-			tmp.append(domain.rstrip(const) + prepend_slash(path))
+			if path:
+				path = prepend_slash(path)
+			tmp.append(domain.rstrip(const) + path)
 	return unique(tmp)
 
 def extend_path(path = None):
@@ -163,6 +178,21 @@ def extend_path(path = None):
 		if path:
 			tmp = [const + path + const, path + const, const + path, path]
 	return unique(tmp)
+
+class uniquestr(str): # NOTE: For double headers.
+	_lower = None
+	def __hash__(self):
+		return id(self)
+	def __eq__(self, other):
+		return self is other
+	def lower(self):
+		if self._lower is None:
+			lower = str.lower(self)
+			if str.__eq__(lower, self): 
+				self._lower = self
+			else:
+				self._lower = uniquestr(lower)
+		return self._lower
 
 def jdump(data):
 	return json.dumps(data, indent = 4, ensure_ascii = False)
@@ -239,6 +269,11 @@ def validate(key, value):
 				error("Content length must be either 'base' or numeric and equal or greater than zero")
 		elif key == "-a" and args["agent"] is None:
 			args["agent"] = value
+			if args["agent"].lower() in ["random", "random-all"]:
+				file = os.path.abspath(os.path.split(__file__)[0]) + os.path.sep + "user_agents.txt"
+				if os.path.isfile(file) and os.access(file, os.R_OK) and os.stat(file).st_size > 0:
+					array = read_file(file)
+					args["agent"] = array[random.randint(0, len(array) - 1)] if args["agent"].lower() == "random" else array
 		elif key == "-x" and args["proxy"] is None:
 			args["proxy"] = value
 		elif key == "-o" and args["out"] is None:
@@ -256,6 +291,8 @@ def check(argc, args):
 # ------------------- TEST RECORDS BEGIN -------------------
 
 def record(raw, identifier, url, method, headers, body, ignore, agent, proxy):
+	if isinstance(agent, list):
+		agent = agent[random.randint(0, len(agent) - 1)]
 	return {"raw": raw, "id": identifier, "url": url, "method": method, "headers": headers, "body": body, "ignore": ignore, "agent": agent, "proxy": proxy, "command": None, "code": 0, "length": 0}
 
 def get_records(identifier, append, repeat, urls, methods, headers = None, body = None, ignore = None, agent = None, proxy = None):
@@ -286,24 +323,22 @@ def fetch(url, method, headers = None, body = None, ignore = None, agent = None,
 
 # TO DO: Do not ignore URL parameters and fragments.
 def parse_url(url):
-	scheme = url.scheme.lower() + "://"
+	scheme = url.scheme.lower()
 	domain = url.netloc.lower()
 	port = url.port
 	if not port:
-		port = 80
-		if url.scheme.lower() == "https":
-			port = 443
+		port = 443 if scheme == "https" else 80
 		domain = ("{0}:{1}").format(domain, port)
 	path = replace_multiple_slashes(url.path)
 	tmp = {
-		"scheme": url.scheme.lower(),
+		"scheme": scheme,
 		"port": port,
-		"domain_no_port": url.netloc.lower().split(":", 1)[0],
+		"domain_no_port": domain.split(":", 1)[0],
 		"domain": domain,
-		"scheme_domain": scheme + domain,
+		"scheme_domain": scheme + "://" + domain,
 		"path": path,
-		"full": scheme + domain + path,
-		"directories": append_paths(scheme + domain, get_directories(path)),
+		"full": scheme + "://" + domain + path,
+		"directories": append_paths(scheme + "://" + domain, get_directories(path)),
 		"paths": extend_path(path)
 	}
 	tmp["urls"] = [tmp["full"], tmp["scheme_domain"], tmp["domain"], tmp["domain_no_port"]]
@@ -347,10 +382,7 @@ def get_timestamp(text):
 	return print(("{0} - {1}").format(datetime.datetime.now().strftime("%H:%M:%S"), text))
 
 def progress(count, total):
-	end = "\r"
-	if count == total:
-		end = "\n"
-	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = end)
+	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = "\n" if count == total else "\r")
 
 def send_request(record):
 	encoding = "UTF-8"
@@ -373,7 +405,7 @@ def send_request(record):
 		request = requests.Request(record["method"], record["url"], headers = headers, data = record["body"])
 		prepared = request.prepare()
 		prepared.url = record["url"]
-		response = session.send(prepared, proxies = proxies, timeout = 180, verify = False, allow_redirects = True)
+		response = session.send(prepared, proxies = proxies, timeout = (90, 180), verify = False, allow_redirects = True)
 		record["code"] = response.status_code
 		record["length"] = len(response.content)
 		data = response.content.decode("ISO-8859-1")
@@ -522,7 +554,7 @@ def main():
 		os.chdir(args["directory"])
 		print("#######################################################################")
 		print("#                                                                     #")
-		print("#                            Stresser v3.4                            #")
+		print("#                            Stresser v3.5                            #")
 		print("#                                by Ivan Sincek                       #")
 		print("#                                                                     #")
 		print("# Bypass 4xx HTTP response status codes with stress testing.          #")
@@ -532,7 +564,7 @@ def main():
 		print("#######################################################################")
 		# --------------------
 		if not args["agent"]:
-			args["agent"] = "Stresser/3.4"
+			args["agent"] = "Stresser/3.5"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}

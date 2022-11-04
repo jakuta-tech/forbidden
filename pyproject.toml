@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "forbidden"
-version = "8.4"
+version = "8.5"
 authors = [{ name = "Ivan Sincek" }]
 description = "Bypass 4xx HTTP response status codes and more."
 readme = "README.md"
@@ -22,3 +22,9 @@ dependencies = ["requests>=2.27.1", "termcolor>=1.1.0"]
 [project.scripts]
 forbidden = "forbidden.forbidden:main"
 stresser = "stresser.stresser:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"*" = ["user_agents.txt"]
