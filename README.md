@@ -68,7 +68,8 @@ Made for educational purposes. I hope it will help!
 
 ## Table of Contents
 
-* [How to Run](#how-to-run)
+* [How to Install](#how-to-install)
+* [How to Build and Install Manually](#how-to-build-and-install-manually)
 * [Automation](#automation)
 * [HTTP Methods](#http-methods)
 * [HTTP Headers](#http-headers)
