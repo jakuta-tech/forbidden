@@ -11,12 +11,12 @@ To manually filter out false positive results, for each unique content length, r
 | Test | Scope |
 | --- | --- |
 | HTTP methods - w/ both HTTP and HTTPS requests, and 'Content-Length: 0' header | methods |
-| Cross-site tracing (XST) with HTTP TRACE and TRACK methods | methods |
-| \[Text\] file upload with HTTP PUT method | methods |
+| Cross-site tracing (XST) w/ HTTP TRACE and TRACK methods | methods |
+| \[Text\] file upload w/ HTTP PUT method | methods |
 | HTTP method overrides - w/ HTTP headers, and URL parameters | method-overrides |
 | URL scheme overrides | scheme-overrides |
 | Port overrides | port-overrides |
-| Information disclosure with 'Accept' header | headers |
+| Information disclosure w/ 'Accept' header | headers |
 | HTTP headers | headers |
 | URL overrides - w/ accessible path, and double 'Host' header | headers |
 | URL path bypasses | paths |
