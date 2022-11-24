@@ -23,7 +23,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Stresser v3.5 ( github.com/ivan-sincek/forbidden )")
+	print("Stresser v3.6 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   stresser -u url                        -dir directory -r repeat -th threads [-f force] [-o out         ]")
 	print("Example: stresser -u https://example.com/secret -dir results   -r 1000   -th 200     [-f GET  ] [-o results.json]")
@@ -61,7 +61,7 @@ def advanced():
 	print("    -l <lengths> - 12 | base | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Stresser/3.5")
+	print("    Default: Stresser/3.6")
 	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -418,6 +418,8 @@ def send_request(record):
 			open(file, "w").write(data)
 	except requests.exceptions.RequestException:
 		pass
+	except requests.packages.urllib3.exceptions.LocationParseError:
+		pass
 	finally:
 		if response is not None:
 			response.close()
@@ -554,7 +556,7 @@ def main():
 		os.chdir(args["directory"])
 		print("#######################################################################")
 		print("#                                                                     #")
-		print("#                            Stresser v3.5                            #")
+		print("#                            Stresser v3.6                            #")
 		print("#                                by Ivan Sincek                       #")
 		print("#                                                                     #")
 		print("# Bypass 4xx HTTP response status codes with stress testing.          #")
@@ -564,7 +566,7 @@ def main():
 		print("#######################################################################")
 		# --------------------
 		if not args["agent"]:
-			args["agent"] = "Stresser/3.5"
+			args["agent"] = "Stresser/3.6"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}

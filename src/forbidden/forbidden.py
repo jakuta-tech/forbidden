@@ -24,7 +24,7 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 def basic():
 	global proceed
 	proceed = False
-	print("Forbidden v8.5 ( github.com/ivan-sincek/forbidden )")
+	print("Forbidden v8.6 ( github.com/ivan-sincek/forbidden )")
 	print("")
 	print("Usage:   forbidden -u url                       -t tests [-f force] [-v values    ] [-p path            ] [-o out         ]")
 	print("Example: forbidden -u https://example.com/admin -t all   [-f GET  ] [-v values.txt] [-p /home/index.html] [-o results.json]")
@@ -78,7 +78,7 @@ def advanced():
 	print("    -th <threads> - 200 | etc.")
 	print("AGENT")
 	print("    User agent to use")
-	print("    Default: Forbidden/8.5")
+	print("    Default: Forbidden/8.6")
 	print("    -a <agent> - curl/3.30.1 | random[-all] | etc.")
 	print("PROXY")
 	print("    Web proxy to use")
@@ -269,7 +269,9 @@ def unicode_encode(string):
 		{ "original": "9", "unicode": "\u2468" }
 	]
 	for character in characters:
-		string = string.replace(character["original"], character["unicode"])
+		if character["original"] in string:
+			string = string.replace(character["original"], character["unicode"])
+			break
 	return string
 
 def get_encoded_domains(domain_no_port, port):
@@ -1042,7 +1044,6 @@ def get_timestamp(text):
 def progress(count, total):
 	print(("Progress: {0}/{1} | {2:.2f}%").format(count, total, (count / total) * 100), end = "\n" if count == total else "\r")
 
-# TO DO: Fix bugs and optimize.
 def send_request(record):
 	encoding = "UTF-8"
 	if record["body"]:
@@ -1070,6 +1071,8 @@ def send_request(record):
 		if record["ignore"] and (record["ignore"]["text"] and re.search(record["ignore"]["text"], response.content.decode("ISO-8859-1"), re.IGNORECASE) or record["ignore"]["lengths"] and any(record["length"] == length for length in record["ignore"]["lengths"])):
 			record["code"] = 0
 	except requests.exceptions.RequestException:
+		pass
+	except requests.packages.urllib3.exceptions.LocationParseError:
 		pass
 	finally:
 		if response is not None:
@@ -1188,7 +1191,7 @@ def main():
 	if proceed:
 		print("######################################################################")
 		print("#                                                                    #")
-		print("#                           Forbidden v8.5                           #")
+		print("#                           Forbidden v8.6                           #")
 		print("#                                by Ivan Sincek                      #")
 		print("#                                                                    #")
 		print("# Bypass 4xx HTTP response status codes and more.                    #")
@@ -1204,7 +1207,7 @@ def main():
 		if not args["threads"]:
 			args["threads"] = 5
 		if not args["agent"]:
-			args["agent"] = "Forbidden/8.5"
+			args["agent"] = "Forbidden/8.6"
 		# --------------------
 		url = parse_url(args["url"])
 		ignore = {"text": args["ignore"], "lengths": args["lengths"] if args["lengths"] else []}
